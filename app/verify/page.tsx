@@ -114,29 +114,34 @@ export default function VerifyPage() {
   };
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-4">Verify an image</h1>
-      <p className="text-gray-600 mb-6">
+    <main className="max-w-3xl mx-auto px-4 py-10">
+      <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">
+        Verify an image
+      </h1>
+      <p className="text-base sm:text-lg text-gray-600 mb-8 leading-relaxed">
         Upload an image you found online. We compare its digital fingerprint with official records. Your image stays on your device unless you choose to report it.
       </p>
 
       {errorMessage && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-          {errorMessage}
+        <div className="bg-red-50 border-l-4 border-red-500 text-red-800 p-4 rounded mb-8 shadow-sm">
+          <p className="font-semibold">{errorMessage}</p>
         </div>
       )}
 
       {loading && (
-        <div className="py-8 text-center text-lg font-medium text-gray-700">
-          Checking...
+        <div className="py-16 text-center">
+          <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent mb-4"></div>
+          <p className="text-xl font-bold text-gray-800">Checking...</p>
         </div>
       )}
 
       {!loading && !verifyResult && (
-        <FileDrop
-          onFileSelected={handleFileSelected}
-          onError={(msg) => setErrorMessage(msg)}
-        />
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <FileDrop
+            onFileSelected={handleFileSelected}
+            onError={(msg) => setErrorMessage(msg)}
+          />
+        </div>
       )}
 
       {!loading && verifyResult && (
@@ -147,11 +152,11 @@ export default function VerifyPage() {
           />
 
           {verifyResult.status === "match" && (
-            <div className="mt-6">
+            <div className="mt-8">
               <button
                 type="button"
                 onClick={handleReset}
-                className="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-900"
+                className="w-full sm:w-auto bg-gray-900 text-white font-semibold text-base sm:text-lg px-8 py-3.5 rounded-xl hover:bg-black transition-colors shadow-md"
               >
                 Check another image
               </button>
@@ -159,37 +164,37 @@ export default function VerifyPage() {
           )}
 
           {verifyResult.status === "no_match" && (
-            <div className="space-y-4">
+            <div className="space-y-6 mt-8">
               {reportResult ? (
-                <div className="bg-blue-50 border border-blue-200 p-4 rounded text-blue-900">
-                  <p className="font-medium">
+                <div className="bg-blue-50 border border-blue-200 p-6 rounded-xl text-blue-950 shadow-sm">
+                  <p className="text-lg sm:text-xl font-bold mb-3">
                     {reportResult.alreadyReported
                       ? `This image was already reported. Status: ${reportResult.status}.`
                       : "Submitted for review. Status: Reported."}
                   </p>
-                  <p className="mt-2">
+                  <div>
                     <Link
                       href="/queue"
-                      className="text-blue-600 underline font-medium hover:text-blue-800"
+                      className="inline-flex items-center text-blue-700 font-bold text-base sm:text-lg hover:underline"
                     >
-                      View the queue
+                      View the queue →
                     </Link>
-                  </p>
+                  </div>
                 </div>
               ) : (
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <button
                     type="button"
                     onClick={handleSubmitForReview}
                     disabled={submittingReport}
-                    className="bg-amber-600 text-white px-4 py-2 rounded hover:bg-amber-700 disabled:opacity-50"
+                    className="bg-amber-600 text-white font-bold text-base sm:text-lg px-6 py-3.5 rounded-xl hover:bg-amber-700 transition-colors shadow-md disabled:opacity-50"
                   >
                     {submittingReport ? "Submitting..." : "Submit for community review"}
                   </button>
                   <button
                     type="button"
                     onClick={handleReset}
-                    className="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-900"
+                    className="bg-gray-800 text-white font-semibold text-base sm:text-lg px-6 py-3.5 rounded-xl hover:bg-gray-900 transition-colors shadow-md"
                   >
                     Check another image
                   </button>
