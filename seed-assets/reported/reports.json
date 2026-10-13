@@ -1,0 +1,10 @@
+{
+  "suspicious-holiday-post.png": {
+    "note": "Circulating on student group chats claiming classes are cancelled tomorrow.",
+    "status": "reported"
+  },
+  "unverified-tuition-notice.png": {
+    "note": "Post alleging an unannounced fee increase for term 2.",
+    "status": "under_review"
+  }
+}
