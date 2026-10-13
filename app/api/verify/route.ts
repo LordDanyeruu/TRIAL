@@ -45,7 +45,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       status: "no_match",
     });
-  } catch {
+  } catch (err) {
+    console.error("POST /api/verify error:", err);
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: "An unexpected error occurred." } },
       { status: 500 }

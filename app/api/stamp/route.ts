@@ -129,7 +129,8 @@ export async function POST(request: Request) {
       record: mapOfficialRecordRow(inserted),
       alreadyStamped: false,
     });
-  } catch {
+  } catch (err) {
+    console.error("POST /api/stamp error:", err);
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: "An unexpected error occurred." } },
       { status: 500 }

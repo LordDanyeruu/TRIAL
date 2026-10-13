@@ -50,7 +50,8 @@ export async function GET() {
     );
 
     return NextResponse.json({ reports });
-  } catch {
+  } catch (err) {
+    console.error("GET /api/reports error:", err);
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: "An unexpected error occurred." } },
       { status: 500 }
@@ -204,7 +205,8 @@ export async function POST(request: Request) {
       report: mapReportRow(inserted, signedData?.signedUrl || ""),
       alreadyReported: false,
     });
-  } catch {
+  } catch (err) {
+    console.error("POST /api/reports error:", err);
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: "An unexpected error occurred." } },
       { status: 500 }

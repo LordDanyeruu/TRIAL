@@ -23,7 +23,8 @@ export async function GET() {
 
     const records = ((data as OfficialRecordRow[]) || []).map(mapOfficialRecordRow);
     return NextResponse.json({ records });
-  } catch {
+  } catch (err) {
+    console.error("GET /api/records error:", err);
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: "An unexpected error occurred." } },
       { status: 500 }

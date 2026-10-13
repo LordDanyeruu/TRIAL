@@ -76,7 +76,8 @@ export async function PATCH(request: Request, props: RouteProps) {
     return NextResponse.json({
       report: mapReportRow(data, signedData.signedUrl),
     });
-  } catch {
+  } catch (err) {
+    console.error("PATCH /api/reports/[id] error:", err);
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: "An unexpected error occurred." } },
       { status: 500 }
