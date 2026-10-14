@@ -11,21 +11,19 @@ const STATUS_LABELS: Record<ReportStatus, string> = {
   resolved: "Resolved",
 };
 
+const STATUS_STYLES: Record<ReportStatus, string> = {
+  reported: "bg-maroon-100 text-maroon-800 border-maroon-200",
+  under_review: "bg-amber-100 text-amber-900 border-amber-300",
+  resolved: "bg-emerald-100 text-emerald-800 border-emerald-300",
+};
+
 export function StatusBadge({ status }: StatusBadgeProps) {
   const label = STATUS_LABELS[status] || status;
-
-  let colorClasses = "bg-gray-100 text-gray-800";
-  if (status === "reported") {
-    colorClasses = "bg-amber-100 text-amber-800 border border-amber-300";
-  } else if (status === "under_review") {
-    colorClasses = "bg-blue-100 text-blue-800 border border-blue-300";
-  } else if (status === "resolved") {
-    colorClasses = "bg-green-100 text-green-800 border border-green-300";
-  }
+  const colorClasses = STATUS_STYLES[status] || "bg-surface text-navy-700 border-line";
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${colorClasses}`}
+      className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-bold ${colorClasses}`}
     >
       {label}
     </span>

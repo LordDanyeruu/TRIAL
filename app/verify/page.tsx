@@ -4,10 +4,36 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { FileDrop } from "@/components/FileDrop";
 import { ResultBanner } from "@/components/ResultBanner";
+import { RecordDetailsModal } from "@/components/RecordDetailsModal";
+import { CheckCircleIcon, SearchIcon, Spinner } from "@/components/Icons";
 import { sha256Hex } from "@/lib/hash";
 import type { OfficialRecord, ReportStatus } from "@/lib/types";
 
-const STATUS_LABELS: Record<ReportStatus, string> = {
+interface VerifyResult {
+  status: "match" | "no_match";
+  record?: OfficialRecord;
+}
+
+interface ReportResult {
+  report: {
+    id: string;
+    sha256: string;
+    fileName: string;
+    status: ReportStatus;
+    note: string | null;
+    createdAt: string;
+    imageUrl: string;
+  };
+  alreadyReported: boolean;
+  status: string;
+}
+
+const solidButton =
+  "inline-flex min-h-11 items-center justify-center rounded-lg bg-maroon-700 px-6 text-sm font-bold text-white transition hover:bg-maroon-800 disabled:cursor-not-allowed disabled:opacity-50";
+const outlineButton =
+  "inline-flex min-h-11 items-center justify-center rounded-lg border border-line bg-white px-6 text-sm font-bold text-navy-900 transition hover:bg-surface";
+
+const STATUS_LABELS: Record<string, string> = {
   reported: "Reported",
   under_review: "Under review",
   resolved: "Resolved",
@@ -17,26 +43,33 @@ export default function VerifyPage() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [verifyResult, setVerifyResult] = useState<{
-    status: "match" | "no_match";
-    record?: OfficialRecord;
-  } | null>(null);
-
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
   const [submittingReport, setSubmittingReport] = useState(false);
-  const [reportResult, setReportResult] = useState<{
-    alreadyReported: boolean;
-    status: string;
-  } | null>(null);
+  const [reportResult, setReportResult] = useState<ReportResult | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   const handleFileSelected = async (selectedFile: File) => {
     setFile(selectedFile);
     setErrorMessage(null);
     setVerifyResult(null);
     setReportResult(null);
+    setShowDetails(false);
     setLoading(true);
 
     try {
-      const hash = await sha256Hex(selectedFile);
+      let hash = "";
+      try {
+        hash = await sha256Hex(selectedFile);
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === "HTTPS_REQUIRED") {
+          setErrorMessage("Please open this page over HTTPS.");
+        } else {
+          setErrorMessage("Something went wrong. Please try again.");
+        }
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -50,24 +83,16 @@ export default function VerifyPage() {
       }
 
       const data = await res.json();
-      if (data.status === "match") {
-        setVerifyResult({ status: "match", record: data.record });
-      } else {
-        setVerifyResult({ status: "no_match" });
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.message === "HTTPS_REQUIRED") {
-        setErrorMessage("Please open this page over HTTPS.");
-      } else {
-        setErrorMessage("Something went wrong. Please try again.");
-      }
+      setVerifyResult(data);
+    } catch {
+      setErrorMessage("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleSubmitForReview = async () => {
-    if (!file) return;
+    if (!file || submittingReport) return;
     setSubmittingReport(true);
     setErrorMessage(null);
 
@@ -80,23 +105,21 @@ export default function VerifyPage() {
         body: formData,
       });
 
-      if (res.status === 409) {
-        setErrorMessage("This file is an official record.");
-        setSubmittingReport(false);
-        return;
-      }
-
       if (!res.ok) {
-        setErrorMessage("Something went wrong. Please try again.");
-        setSubmittingReport(false);
+        const errorData = await res.json().catch(() => null);
+        if (res.status === 409 && errorData?.error?.code === "ALREADY_OFFICIAL") {
+          setErrorMessage("This file is an official record.");
+        } else {
+          setErrorMessage("Something went wrong. Please try again.");
+        }
         return;
       }
 
       const data = await res.json();
-      const statusLabel = STATUS_LABELS[data.report.status as ReportStatus] || "Reported";
       setReportResult({
+        report: data.report,
         alreadyReported: Boolean(data.alreadyReported),
-        status: statusLabel,
+        status: data.report?.status || "reported",
       });
     } catch {
       setErrorMessage("Something went wrong. Please try again.");
@@ -107,102 +130,120 @@ export default function VerifyPage() {
 
   const handleReset = () => {
     setFile(null);
-    setLoading(false);
     setErrorMessage(null);
     setVerifyResult(null);
     setReportResult(null);
+    setShowDetails(false);
   };
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-10">
-      <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">
-        Verify an image
-      </h1>
-      <p className="text-base sm:text-lg text-gray-600 mb-8 leading-relaxed">
-        Upload an image you found online. We compare its digital fingerprint with official records. Your image stays on your device unless you choose to report it.
-      </p>
-
-      {errorMessage && (
-        <div className="bg-red-50 border-l-4 border-red-500 text-red-800 p-4 rounded mb-8 shadow-sm">
-          <p className="font-semibold">{errorMessage}</p>
-        </div>
-      )}
-
-      {loading && (
-        <div className="py-16 text-center">
-          <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent mb-4"></div>
-          <p className="text-xl font-bold text-gray-800">Checking...</p>
-        </div>
-      )}
-
-      {!loading && !verifyResult && (
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <FileDrop
-            onFileSelected={handleFileSelected}
-            onError={(msg) => setErrorMessage(msg)}
-          />
-        </div>
-      )}
-
-      {!loading && verifyResult && (
+    <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+      <div className="flex items-start gap-4">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-maroon-50 text-maroon-700 sm:h-16 sm:w-16">
+          <SearchIcon className="h-7 w-7 sm:h-8 sm:w-8" />
+        </span>
         <div>
-          <ResultBanner
-            status={verifyResult.status}
-            record={verifyResult.record}
-          />
+          <h1 className="text-3xl font-extrabold tracking-tight text-navy-900 sm:text-4xl">
+            Verify an image
+          </h1>
+          <p className="mt-2 text-base leading-relaxed text-navy-700 sm:text-lg">
+            Upload an image you found online. We compare its digital fingerprint with official records. Your image stays on your device unless you choose to report it.
+          </p>
+        </div>
+      </div>
 
-          {verifyResult.status === "match" && (
-            <div className="mt-8">
-              <button
-                type="button"
-                onClick={handleReset}
-                className="w-full sm:w-auto bg-gray-900 text-white font-semibold text-base sm:text-lg px-8 py-3.5 rounded-xl hover:bg-black transition-colors shadow-md"
-              >
-                Check another image
-              </button>
+      <div className="mt-8 space-y-6">
+        {errorMessage && (
+          <div
+            role="alert"
+            className="rounded-xl border border-maroon-200 border-l-8 border-l-maroon-700 bg-maroon-50 p-4 font-semibold text-maroon-900"
+          >
+            {errorMessage}
+          </div>
+        )}
+
+        {loading && (
+          <div
+            role="status"
+            className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-6"
+          >
+            <Spinner className="h-10 w-10 shrink-0 text-maroon-700" />
+            <div className="min-w-0">
+              <p className="text-xl font-bold text-navy-900">Checking...</p>
+              {file && <p className="truncate text-sm text-navy-500">{file.name}</p>}
             </div>
-          )}
+          </div>
+        )}
 
-          {verifyResult.status === "no_match" && (
-            <div className="space-y-6 mt-8">
-              {reportResult ? (
-                <div className="bg-blue-50 border border-blue-200 p-6 rounded-xl text-blue-950 shadow-sm">
-                  <p className="text-lg sm:text-xl font-bold mb-3">
-                    {reportResult.alreadyReported
-                      ? `This image was already reported. Status: ${reportResult.status}.`
-                      : "Submitted for review. Status: Reported."}
-                  </p>
-                  <div>
-                    <Link
-                      href="/queue"
-                      className="inline-flex items-center text-blue-700 font-bold text-base sm:text-lg hover:underline"
-                    >
-                      View the queue →
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row gap-4">
+        {!loading && !verifyResult && (
+          <div className="rounded-2xl border border-line bg-white p-4 shadow-sm sm:p-6">
+            <FileDrop
+              onFileSelected={handleFileSelected}
+              onError={(msg) => setErrorMessage(msg)}
+            />
+          </div>
+        )}
+
+        {!loading && verifyResult && (
+          <>
+            {verifyResult.status === "match" && (
+              <ResultBanner status="match" record={verifyResult.record}>
+                <button type="button" onClick={() => setShowDetails(true)} className={solidButton}>
+                  View Details
+                </button>
+                <button type="button" onClick={handleReset} className={outlineButton}>
+                  Check another image
+                </button>
+              </ResultBanner>
+            )}
+
+            {verifyResult.status === "no_match" && (
+              <ResultBanner status="no_match">
+                {!reportResult && (
                   <button
                     type="button"
                     onClick={handleSubmitForReview}
                     disabled={submittingReport}
-                    className="bg-amber-600 text-white font-bold text-base sm:text-lg px-6 py-3.5 rounded-xl hover:bg-amber-700 transition-colors shadow-md disabled:opacity-50"
+                    className={solidButton}
                   >
                     {submittingReport ? "Submitting..." : "Submit for community review"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="bg-gray-800 text-white font-semibold text-base sm:text-lg px-6 py-3.5 rounded-xl hover:bg-gray-900 transition-colors shadow-md"
+                )}
+                <button type="button" onClick={handleReset} className={outlineButton}>
+                  Check another image
+                </button>
+              </ResultBanner>
+            )}
+
+            {verifyResult.status === "no_match" && reportResult && (
+              <div
+                role="status"
+                className="flex gap-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-950"
+              >
+                <CheckCircleIcon className="h-8 w-8 shrink-0 text-emerald-600" />
+                <div>
+                  <p className="text-lg font-bold sm:text-xl">
+                    {reportResult.alreadyReported
+                      ? `This image was already reported. Status: ${
+                          STATUS_LABELS[reportResult.status] || reportResult.status
+                        }.`
+                      : "Submitted for review. Status: Reported."}
+                  </p>
+                  <Link
+                    href="/queue"
+                    className="mt-2 inline-flex min-h-11 items-center text-base font-bold text-maroon-700 underline"
                   >
-                    Check another image
-                  </button>
+                    View the queue
+                  </Link>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {showDetails && verifyResult?.record && (
+        <RecordDetailsModal record={verifyResult.record} onClose={() => setShowDetails(false)} />
       )}
     </main>
   );
